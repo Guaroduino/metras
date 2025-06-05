@@ -41,9 +41,11 @@ function startGame() {
   setTimeout(init, 10); // Esperar a que el canvas esté en el DOM
 }
 
-// Ajustar tamaño del canvas al tamaño de la pantalla
+// --- FIJAR tamaño de canvas y proporciones al iniciar y al redimensionar ---
 function resizeCanvas() {
   const canvas = document.getElementById('game-canvas');
+  if (!canvas) return;
+  // Ajustar el tamaño físico y el tamaño de atributos
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   if (render) {
@@ -51,6 +53,38 @@ function resizeCanvas() {
     render.canvas.height = window.innerHeight;
     render.options.width = window.innerWidth;
     render.options.height = window.innerHeight;
+  }
+  // Si hay paredes, ajustarlas
+  if (engine && world && world.bodies) {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const minDim = Math.min(w, h);
+    const wallThickness = Math.max(16, Math.round(minDim * 0.04));
+    // Buscar y actualizar las paredes si existen
+    world.bodies.forEach(body => {
+      if (body.isStatic && body.label === 'Rectangle Body') {
+        // Top
+        if (body.position.y < h/4) {
+          Body.setPosition(body, { x: w/2, y: -wallThickness/2 });
+          Body.setVertices(body, Matter.Vertices.fromPath(`0 0 ${w} 0 ${w} ${wallThickness} 0 ${wallThickness}`));
+        }
+        // Bottom
+        else if (body.position.y > h*3/4) {
+          Body.setPosition(body, { x: w/2, y: h+wallThickness/2 });
+          Body.setVertices(body, Matter.Vertices.fromPath(`0 0 ${w} 0 ${w} ${wallThickness} 0 ${wallThickness}`));
+        }
+        // Left
+        else if (body.position.x < w/4) {
+          Body.setPosition(body, { x: -wallThickness/2, y: h/2 });
+          Body.setVertices(body, Matter.Vertices.fromPath(`0 0 ${wallThickness} 0 ${wallThickness} ${h} 0 ${h}`));
+        }
+        // Right
+        else if (body.position.x > w*3/4) {
+          Body.setPosition(body, { x: w+wallThickness/2, y: h/2 });
+          Body.setVertices(body, Matter.Vertices.fromPath(`0 0 ${wallThickness} 0 ${wallThickness} ${h} 0 ${h}`));
+        }
+      }
+    });
   }
 }
 window.addEventListener('resize', resizeCanvas);
@@ -126,10 +160,13 @@ function init() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const minDim = Math.min(w, h);
-  const wallThickness = Math.max(16, Math.round(minDim * 0.04)); // 4% del lado menor, mínimo 16px
-  const playerRadius = Math.max(18, Math.round(minDim * 0.07)); // 7% del lado menor, mínimo 18px
-  const targetMin = Math.max(10, Math.round(minDim * 0.045)); // 4.5% del lado menor, mínimo 10px
-  const targetMax = Math.max(16, Math.round(minDim * 0.08)); // 8% del lado menor, mínimo 16px
+  // Limitar el tamaño máximo en mobile
+  const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+  const scale = isMobile ? 0.7 : 1;
+  const wallThickness = Math.max(12, Math.round(minDim * 0.04 * scale));
+  const playerRadius = Math.max(12, Math.round(minDim * 0.07 * scale));
+  const targetMin = Math.max(8, Math.round(minDim * 0.045 * scale));
+  const targetMax = Math.max(12, Math.round(minDim * 0.08 * scale));
 
   // Crear paredes
   const walls = [
@@ -295,28 +332,6 @@ function init() {
       }
     });
   });
-
-  // Control de gravedad por acelerómetro
-  if (window.DeviceOrientationEvent) {
-    function handleOrientation(event) {
-      // gamma: izquierda/derecha, beta: adelante/atrás
-      let gamma = event.gamma || 0;
-      let beta = event.beta || 0;
-      // Normalizar valores a rango [-1, 1]
-      engine.world.gravity.x = Math.max(-1, Math.min(1, gamma / 45));
-      engine.world.gravity.y = Math.max(-1, Math.min(1, beta / 45));
-    }
-    // Solicitar permiso en iOS 13+
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission().then(response => {
-        if (response === 'granted') {
-          window.addEventListener('deviceorientation', handleOrientation);
-        }
-      }).catch(console.error);
-    } else {
-      window.addEventListener('deviceorientation', handleOrientation);
-    }
-  }
 
   // Dibujo del lanzador en cada frame
   (function renderLoop() {
