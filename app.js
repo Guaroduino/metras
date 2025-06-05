@@ -183,6 +183,7 @@ function init() {
   // --- Lógica personalizada de resorte ---
   // Desktop: mouse
   render.canvas.addEventListener('mousedown', function(e) {
+    if (gameMode === '2p') playerMarble = currentPlayer === 1 ? player1Marble : player2Marble;
     const rect = render.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -229,10 +230,11 @@ function init() {
   });
   // Mobile: touch
   render.canvas.addEventListener('touchstart', function(e) {
+    if (gameMode === '2p') playerMarble = currentPlayer === 1 ? player1Marble : player2Marble;
     const touch = e.touches[0];
     const rect = render.canvas.getBoundingClientRect();
-    const x = (touch.clientX - rect.left);
-    const y = (touch.clientY - rect.top);
+    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
     const dx = x - playerMarble.position.x;
     const dy = y - playerMarble.position.y;
     if (Math.sqrt(dx*dx + dy*dy) <= playerMarble.circleRadius + 10) {
@@ -247,8 +249,8 @@ function init() {
     const touch = e.touches[0];
     const rect = render.canvas.getBoundingClientRect();
     dragCurrent = {
-      x: (touch.clientX - rect.left),
-      y: (touch.clientY - rect.top)
+      x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+      y: (touch.clientY - rect.top) * (canvas.height / rect.height)
     };
     e.preventDefault();
   }, { passive: false });
