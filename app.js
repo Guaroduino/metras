@@ -103,24 +103,58 @@ function drawLauncher() {
   const ctx = render.context;
   ctx.save();
   // Limitar el resorte visual
-  const maxDist = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+  const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.25 : 0.35);
   let visualVec = { x: dragCurrent.x - dragStart.x, y: dragCurrent.y - dragStart.y };
   visualVec = getLimitedVector(visualVec, maxDist);
   const endX = dragStart.x + visualVec.x;
   const endY = dragStart.y + visualVec.y;
+  
   // Línea principal del resorte
   ctx.strokeStyle = '#ff0';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = isMobile ? 6 : 4; // Línea más gruesa en móviles
   ctx.beginPath();
   ctx.moveTo(playerMarble.position.x, playerMarble.position.y);
   ctx.lineTo(endX, endY);
   ctx.stroke();
+  
   // Círculo en el punto de agarre
   ctx.beginPath();
-  ctx.arc(endX, endY, 16, 0, 2 * Math.PI);
+  ctx.arc(endX, endY, isMobile ? 24 : 16, 0, 2 * Math.PI); // Círculo más grande en móviles
   ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = isMobile ? 3 : 2; // Línea más gruesa en móviles
   ctx.stroke();
+  
+  // Indicador de dirección
+  if (isMobile) {
+    const arrowLength = 30;
+    const angle = Math.atan2(visualVec.y, visualVec.x);
+    const arrowX = endX - arrowLength * Math.cos(angle);
+    const arrowY = endY - arrowLength * Math.sin(angle);
+    
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(arrowX, arrowY);
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    
+    // Punta de la flecha
+    const arrowSize = 12;
+    ctx.beginPath();
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(
+      arrowX + arrowSize * Math.cos(angle - Math.PI/6),
+      arrowY + arrowSize * Math.sin(angle - Math.PI/6)
+    );
+    ctx.lineTo(
+      arrowX + arrowSize * Math.cos(angle + Math.PI/6),
+      arrowY + arrowSize * Math.sin(angle + Math.PI/6)
+    );
+    ctx.closePath();
+    ctx.fillStyle = '#ff0';
+    ctx.fill();
+  }
+  
   ctx.restore();
 }
 
@@ -148,7 +182,7 @@ function init() {
       height: window.innerHeight,
       wireframes: false,
       background: '#333',
-      pixelRatio: 1 // Forzar pixelRatio a 1 para evitar escalado raro en mobile
+      pixelRatio: isMobile ? 1 : window.devicePixelRatio
     }
   });
   Render.run(render);
@@ -162,11 +196,11 @@ function init() {
   const minDim = Math.min(w, h);
   // Limitar el tamaño máximo en mobile
   const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-  const scale = isMobile ? 0.45 : 0.7; // Reducir aún más en mobile
-  const wallThickness = Math.max(8, Math.round(minDim * 0.03 * scale));
-  const playerRadius = Math.max(8, Math.round(minDim * 0.045 * scale));
-  const targetMin = Math.max(6, Math.round(minDim * 0.03 * scale));
-  const targetMax = Math.max(10, Math.round(minDim * 0.05 * scale));
+  const scale = isMobile ? 0.6 : 0.7;
+  const wallThickness = Math.max(16, Math.round(minDim * 0.04 * scale));
+  const playerRadius = Math.max(12, Math.round(minDim * 0.045 * scale));
+  const targetMin = Math.max(8, Math.round(minDim * 0.03 * scale));
+  const targetMax = Math.max(12, Math.round(minDim * 0.05 * scale));
 
   // Crear paredes
   const walls = [
@@ -249,9 +283,9 @@ function init() {
   render.canvas.addEventListener('mouseup', function(e) {
     if (!isDragging) return;
     isDragging = false;
-    const forceScale = 0.0025;
+    const forceScale = isMobile ? 0.001 : 0.0025;
     let vec = { x: dragStart.x - dragCurrent.x, y: dragStart.y - dragCurrent.y };
-    const maxDist = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+    const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.25 : 0.35);
     vec = getLimitedVector(vec, maxDist);
     dragVector = vec;
     Body.setVelocity(playerMarble, { x: 0, y: 0 });
@@ -298,9 +332,9 @@ function init() {
   render.canvas.addEventListener('touchend', function(e) {
     if (!isDragging) return;
     isDragging = false;
-    const forceScale = 0.0025;
+    const forceScale = isMobile ? 0.001 : 0.0025;
     let vec = { x: dragStart.x - dragCurrent.x, y: dragStart.y - dragCurrent.y };
-    const maxDist = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+    const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.25 : 0.35);
     vec = getLimitedVector(vec, maxDist);
     dragVector = vec;
     Body.setVelocity(playerMarble, { x: 0, y: 0 });
