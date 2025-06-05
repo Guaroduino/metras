@@ -148,7 +148,7 @@ function init() {
       height: window.innerHeight,
       wireframes: false,
       background: '#333',
-      pixelRatio: window.devicePixelRatio
+      pixelRatio: 1 // Forzar pixelRatio a 1 para evitar escalado raro en mobile
     }
   });
   Render.run(render);
@@ -162,11 +162,11 @@ function init() {
   const minDim = Math.min(w, h);
   // Limitar el tamaño máximo en mobile
   const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-  const scale = isMobile ? 0.7 : 1;
-  const wallThickness = Math.max(12, Math.round(minDim * 0.04 * scale));
-  const playerRadius = Math.max(12, Math.round(minDim * 0.07 * scale));
-  const targetMin = Math.max(8, Math.round(minDim * 0.045 * scale));
-  const targetMax = Math.max(12, Math.round(minDim * 0.08 * scale));
+  const scale = isMobile ? 0.45 : 0.7; // Reducir aún más en mobile
+  const wallThickness = Math.max(8, Math.round(minDim * 0.03 * scale));
+  const playerRadius = Math.max(8, Math.round(minDim * 0.045 * scale));
+  const targetMin = Math.max(6, Math.round(minDim * 0.03 * scale));
+  const targetMax = Math.max(10, Math.round(minDim * 0.05 * scale));
 
   // Crear paredes
   const walls = [
@@ -214,6 +214,10 @@ function init() {
     targetMarbles.push(marble);
   }
   World.add(world, targetMarbles);
+
+  // --- FIJAR gravedad a 1 para que no se caigan ---
+  engine.world.gravity.y = 0;
+  engine.world.gravity.x = 0;
 
   // Mouse/touch constraint solo para la metra del jugador
   const mouse = Mouse.create(render.canvas);
