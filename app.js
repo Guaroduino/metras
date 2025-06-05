@@ -19,8 +19,8 @@ const config = {
     wallThickness: 20,
     playerRadius: 15,
     targetRadius: 12,
-    forceMultiplier: 0.0005,
-    maxDragDistance: 150,
+    forceMultiplier: 0.001,
+    maxDragDistance: 200,
     friction: 0.1,
     restitution: 0.6
 };
@@ -143,9 +143,9 @@ function handleTouchStart(e) {
     e.preventDefault();
     
     const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+    const rect = render.canvas.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) * (render.canvas.width / rect.width);
+    const y = (touch.clientY - rect.top) * (render.canvas.height / rect.height);
     
     const dx = x - playerMarble.position.x;
     const dy = y - playerMarble.position.y;
@@ -163,10 +163,10 @@ function handleTouchMove(e) {
     e.preventDefault();
     
     const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
+    const rect = render.canvas.getBoundingClientRect();
     dragCurrent = {
-        x: (touch.clientX - rect.left) * (canvas.width / rect.width),
-        y: (touch.clientY - rect.top) * (canvas.height / rect.height)
+        x: (touch.clientX - rect.left) * (render.canvas.width / rect.width),
+        y: (touch.clientY - rect.top) * (render.canvas.height / rect.height)
     };
 }
 
@@ -180,9 +180,13 @@ function handleTouchEnd(e) {
     const distance = Math.sqrt(dx * dx + dy * dy);
     
     if (distance > 0) {
+        // Limitar la distancia máxima de lanzamiento
+        const maxDistance = config.maxDragDistance;
+        const scale = Math.min(1, maxDistance / distance);
+        
         const force = {
-            x: dx * config.forceMultiplier,
-            y: dy * config.forceMultiplier
+            x: dx * scale * config.forceMultiplier,
+            y: dy * scale * config.forceMultiplier
         };
         
         Body.setVelocity(playerMarble, { x: 0, y: 0 });
