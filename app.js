@@ -206,10 +206,38 @@ function init() {
 
   // Crear paredes
   const walls = [
-    Bodies.rectangle(w/2, -wallThickness/2, w, wallThickness, { isStatic: true }), // top
-    Bodies.rectangle(w/2, h+wallThickness/2, w, wallThickness, { isStatic: true }), // bottom
-    Bodies.rectangle(-wallThickness/2, h/2, wallThickness, h, { isStatic: true }), // left
-    Bodies.rectangle(w+wallThickness/2, h/2, wallThickness, h, { isStatic: true }) // right
+    Bodies.rectangle(w/2, -wallThickness/2, w, wallThickness, { 
+      isStatic: true,
+      label: 'wall',
+      restitution: 0.5,
+      friction: 0.1,
+      density: 1,
+      render: { fillStyle: '#666' }
+    }), // top
+    Bodies.rectangle(w/2, h+wallThickness/2, w, wallThickness, { 
+      isStatic: true,
+      label: 'wall',
+      restitution: 0.5,
+      friction: 0.1,
+      density: 1,
+      render: { fillStyle: '#666' }
+    }), // bottom
+    Bodies.rectangle(-wallThickness/2, h/2, wallThickness, h, { 
+      isStatic: true,
+      label: 'wall',
+      restitution: 0.5,
+      friction: 0.1,
+      density: 1,
+      render: { fillStyle: '#666' }
+    }), // left
+    Bodies.rectangle(w+wallThickness/2, h/2, wallThickness, h, { 
+      isStatic: true,
+      label: 'wall',
+      restitution: 0.5,
+      friction: 0.1,
+      density: 1,
+      render: { fillStyle: '#666' }
+    }) // right
   ];
   World.add(world, walls);
 
@@ -217,12 +245,16 @@ function init() {
   if (gameMode === '2p') {
     player1Marble = Bodies.circle(w * 0.2, h * 0.5, playerRadius, {
       label: 'player1Marble',
-      restitution: 0.9,
+      restitution: 0.7,
+      friction: 0.1,
+      density: 0.8,
       render: { fillStyle: '#f5e663', strokeStyle: '#fff', lineWidth: 2 }
     });
     player2Marble = Bodies.circle(w * 0.8, h * 0.5, playerRadius, {
       label: 'player2Marble',
-      restitution: 0.9,
+      restitution: 0.7,
+      friction: 0.1,
+      density: 0.8,
       render: { fillStyle: '#3498db', strokeStyle: '#fff', lineWidth: 2 }
     });
     World.add(world, [player1Marble, player2Marble]);
@@ -230,7 +262,9 @@ function init() {
   } else {
     playerMarble = Bodies.circle(w * 0.2, h * 0.5, playerRadius, {
       label: 'playerMarble',
-      restitution: 0.9,
+      restitution: 0.7,
+      friction: 0.1,
+      density: 0.8,
       render: { fillStyle: '#f5e663', strokeStyle: '#fff', lineWidth: 2 }
     });
     World.add(world, playerMarble);
@@ -244,16 +278,27 @@ function init() {
     let y = h * (0.5 + 0.3 * Math.sin((i/6)*2*Math.PI));
     let marble = Bodies.circle(x, y, radius, {
       label: 'targetMarble',
-      restitution: 0.9,
+      restitution: 0.7,
+      friction: 0.1,
+      density: 0.8,
       render: { fillStyle: colors[i % colors.length], strokeStyle: '#fff', lineWidth: 2 }
     });
     targetMarbles.push(marble);
   }
   World.add(world, targetMarbles);
 
-  // --- FIJAR gravedad a 1 para que no se caigan ---
+  // --- FIJAR gravedad a 0 para que no se caigan ---
   engine.world.gravity.y = 0;
   engine.world.gravity.x = 0;
+
+  // Añadir configuración de estabilidad
+  engine.timing.timeScale = 1;
+  engine.timing.timestamp = 0;
+  
+  // Configurar el motor para mejor estabilidad
+  engine.constraintIterations = 4;
+  engine.positionIterations = 6;
+  engine.velocityIterations = 4;
 
   // Mouse/touch constraint solo para la metra del jugador
   const mouse = Mouse.create(render.canvas);
