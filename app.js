@@ -1,431 +1,241 @@
-// app.js: Juego de metras con Matter.js optimizado para móviles
-// Configuración y variables globales
-let Engine = Matter.Engine,
-    Render = Matter.Render,
-    Runner = Matter.Runner,
-    World = Matter.World,
-    Bodies = Matter.Bodies,
-    Body = Matter.Body,
-    Mouse = Matter.Mouse,
-    MouseConstraint = Matter.MouseConstraint,
-    Events = Matter.Events;
+// Configuración inicial
+const Engine = Matter.Engine,
+      Render = Matter.Render,
+      World = Matter.World,
+      Bodies = Matter.Bodies,
+      Body = Matter.Body,
+      Events = Matter.Events;
 
-let engine, world, render, runner;
-let playerMarble;
-let targetMarbles = [];
+// Variables globales
+let engine, world, render;
+let playerMarble, targetMarbles = [];
 let isDragging = false;
 let dragStart = null;
 let dragCurrent = null;
-let dragVector = null;
-let isMobile = false; // Añadida variable global isMobile
+let gameStarted = false;
 
-// --- Pantalla de selección de modo ---
-let gameMode = null; // '1p' o '2p'
+// Configuración del juego
+const config = {
+    wallThickness: 20,
+    playerRadius: 15,
+    targetRadius: 12,
+    forceMultiplier: 0.0005,
+    maxDragDistance: 150,
+    friction: 0.1,
+    restitution: 0.6
+};
 
-function showModeSelection() {
-  const container = document.getElementById('game-container');
-  container.innerHTML = `
-    <div id="mode-select" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100vw;height:100vh;background:#222;">
-      <h1 style="color:#fff;font-size:2.2em;margin-bottom:1em;">Selecciona el modo de juego</h1>
-      <button id="btn-1p" style="font-size:1.3em;padding:0.7em 2em;margin:0.5em;border-radius:10px;border:none;background:#f5e663;color:#222;font-weight:bold;">1 jugador</button>
-      <button id="btn-2p" style="font-size:1.3em;padding:0.7em 2em;margin:0.5em;border-radius:10px;border:none;background:#3498db;color:#fff;font-weight:bold;">2 jugadores</button>
-    </div>
-  `;
-  document.getElementById('btn-1p').onclick = () => { gameMode = '1p'; startGame(); };
-  document.getElementById('btn-2p').onclick = () => { gameMode = '2p'; startGame(); };
+// Inicialización
+function init() {
+    // Crear motor y mundo
+    engine = Engine.create({
+        timing: {
+            timeScale: 1
+        }
+    });
+    world = engine.world;
+    engine.gravity.y = 0;
+    engine.gravity.x = 0;
+
+    // Configurar renderer
+    const canvas = document.getElementById('game-canvas');
+    render = Render.create({
+        canvas: canvas,
+        engine: engine,
+        options: {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            wireframes: false,
+            background: '#2a2a2a',
+            pixelRatio: 1
+        }
+    });
+
+    // Crear paredes
+    createWalls();
+    
+    // Crear metras
+    createMarbles();
+
+    // Iniciar renderer
+    Render.run(render);
+    Engine.run(engine);
+
+    // Eventos táctiles
+    setupTouchEvents();
 }
 
-function startGame() {
-  // Limpiar pantalla y poner el canvas
-  const container = document.getElementById('game-container');
-  container.innerHTML = '<canvas id="game-canvas"></canvas>';
-  setTimeout(init, 10); // Esperar a que el canvas esté en el DOM
-}
-
-// --- FIJAR tamaño de canvas y proporciones al iniciar y al redimensionar ---
-function resizeCanvas() {
-  const canvas = document.getElementById('game-canvas');
-  if (!canvas) return;
-  // Ajustar el tamaño físico y el tamaño de atributos
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  if (render) {
-    render.canvas.width = window.innerWidth;
-    render.canvas.height = window.innerHeight;
-    render.options.width = window.innerWidth;
-    render.options.height = window.innerHeight;
-  }
-  // Si hay paredes, ajustarlas
-  if (engine && world && world.bodies) {
+function createWalls() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const minDim = Math.min(w, h);
-    const wallThickness = Math.max(16, Math.round(minDim * 0.04));
-    // Buscar y actualizar las paredes si existen
-    world.bodies.forEach(body => {
-      if (body.isStatic && body.label === 'Rectangle Body') {
-        // Top
-        if (body.position.y < h/4) {
-          Body.setPosition(body, { x: w/2, y: -wallThickness/2 });
-          Body.setVertices(body, Matter.Vertices.fromPath(`0 0 ${w} 0 ${w} ${wallThickness} 0 ${wallThickness}`));
-        }
-        // Bottom
-        else if (body.position.y > h*3/4) {
-          Body.setPosition(body, { x: w/2, y: h+wallThickness/2 });
-          Body.setVertices(body, Matter.Vertices.fromPath(`0 0 ${w} 0 ${w} ${wallThickness} 0 ${wallThickness}`));
-        }
-        // Left
-        else if (body.position.x < w/4) {
-          Body.setPosition(body, { x: -wallThickness/2, y: h/2 });
-          Body.setVertices(body, Matter.Vertices.fromPath(`0 0 ${wallThickness} 0 ${wallThickness} ${h} 0 ${h}`));
-        }
-        // Right
-        else if (body.position.x > w*3/4) {
-          Body.setPosition(body, { x: w+wallThickness/2, y: h/2 });
-          Body.setVertices(body, Matter.Vertices.fromPath(`0 0 ${wallThickness} 0 ${wallThickness} ${h} 0 ${h}`));
-        }
-      }
-    });
-  }
+    const walls = [
+        // Pared superior
+        Bodies.rectangle(w/2, -config.wallThickness/2, w, config.wallThickness, {
+            isStatic: true,
+            render: { fillStyle: '#666' }
+        }),
+        // Pared inferior
+        Bodies.rectangle(w/2, h + config.wallThickness/2, w, config.wallThickness, {
+            isStatic: true,
+            render: { fillStyle: '#666' }
+        }),
+        // Pared izquierda
+        Bodies.rectangle(-config.wallThickness/2, h/2, config.wallThickness, h, {
+            isStatic: true,
+            render: { fillStyle: '#666' }
+        }),
+        // Pared derecha
+        Bodies.rectangle(w + config.wallThickness/2, h/2, config.wallThickness, h, {
+            isStatic: true,
+            render: { fillStyle: '#666' }
+        })
+    ];
+    World.add(world, walls);
 }
-window.addEventListener('resize', resizeCanvas);
 
-function getLimitedVector(vec, maxLength) {
-  const len = Math.sqrt(vec.x * vec.x + vec.y * vec.y);
-  if (len > maxLength) {
-    const scale = maxLength / len;
-    return { x: vec.x * scale, y: vec.y * scale };
-  }
-  return vec;
+function createMarbles() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    // Crear metra del jugador
+    playerMarble = Bodies.circle(w * 0.2, h * 0.5, config.playerRadius, {
+        restitution: config.restitution,
+        friction: config.friction,
+        render: {
+            fillStyle: '#4CAF50',
+            strokeStyle: '#fff',
+            lineWidth: 2
+        }
+    });
+    World.add(world, playerMarble);
+
+    // Crear metras objetivo
+    const colors = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12'];
+    for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const x = w * 0.5 + Math.cos(angle) * w * 0.2;
+        const y = h * 0.5 + Math.sin(angle) * h * 0.2;
+        
+        const marble = Bodies.circle(x, y, config.targetRadius, {
+            restitution: config.restitution,
+            friction: config.friction,
+            render: {
+                fillStyle: colors[i],
+                strokeStyle: '#fff',
+                lineWidth: 2
+            }
+        });
+        targetMarbles.push(marble);
+    }
+    World.add(world, targetMarbles);
+}
+
+function setupTouchEvents() {
+    const canvas = render.canvas;
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+}
+
+function handleTouchStart(e) {
+    if (!gameStarted) return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+    
+    const dx = x - playerMarble.position.x;
+    const dy = y - playerMarble.position.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance <= config.playerRadius * 2) {
+        isDragging = true;
+        dragStart = { x: playerMarble.position.x, y: playerMarble.position.y };
+        dragCurrent = { x, y };
+    }
+}
+
+function handleTouchMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    dragCurrent = {
+        x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+        y: (touch.clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
+function handleTouchEnd(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    
+    isDragging = false;
+    const dx = dragStart.x - dragCurrent.x;
+    const dy = dragStart.y - dragCurrent.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > 0) {
+        const force = {
+            x: dx * config.forceMultiplier,
+            y: dy * config.forceMultiplier
+        };
+        
+        Body.setVelocity(playerMarble, { x: 0, y: 0 });
+        Body.applyForce(playerMarble, playerMarble.position, force);
+    }
+    
+    dragStart = null;
+    dragCurrent = null;
 }
 
 function drawLauncher() {
-  if (!isDragging || !dragStart || !dragCurrent) return;
-  const ctx = render.context;
-  ctx.save();
-  // Limitar el resorte visual
-  const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.25 : 0.35);
-  let visualVec = { x: dragCurrent.x - dragStart.x, y: dragCurrent.y - dragStart.y };
-  visualVec = getLimitedVector(visualVec, maxDist);
-  const endX = dragStart.x + visualVec.x;
-  const endY = dragStart.y + visualVec.y;
-  
-  // Línea principal del resorte
-  ctx.strokeStyle = '#ff0';
-  ctx.lineWidth = isMobile ? 6 : 4; // Línea más gruesa en móviles
-  ctx.beginPath();
-  ctx.moveTo(playerMarble.position.x, playerMarble.position.y);
-  ctx.lineTo(endX, endY);
-  ctx.stroke();
-  
-  // Círculo en el punto de agarre
-  ctx.beginPath();
-  ctx.arc(endX, endY, isMobile ? 24 : 16, 0, 2 * Math.PI); // Círculo más grande en móviles
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = isMobile ? 3 : 2; // Línea más gruesa en móviles
-  ctx.stroke();
-  
-  // Indicador de dirección
-  if (isMobile) {
-    const arrowLength = 30;
-    const angle = Math.atan2(visualVec.y, visualVec.x);
-    const arrowX = endX - arrowLength * Math.cos(angle);
-    const arrowY = endY - arrowLength * Math.sin(angle);
+    if (!isDragging || !dragStart || !dragCurrent) return;
     
+    const ctx = render.context;
+    ctx.save();
+    
+    // Dibujar línea de dirección
     ctx.beginPath();
-    ctx.moveTo(endX, endY);
-    ctx.lineTo(arrowX, arrowY);
-    ctx.strokeStyle = '#ff0';
-    ctx.lineWidth = 4;
+    ctx.moveTo(dragStart.x, dragStart.y);
+    ctx.lineTo(dragCurrent.x, dragCurrent.y);
+    ctx.strokeStyle = '#4CAF50';
+    ctx.lineWidth = 3;
     ctx.stroke();
     
-    // Punta de la flecha
-    const arrowSize = 12;
+    // Dibujar círculo en el punto de agarre
     ctx.beginPath();
-    ctx.moveTo(arrowX, arrowY);
-    ctx.lineTo(
-      arrowX + arrowSize * Math.cos(angle - Math.PI/6),
-      arrowY + arrowSize * Math.sin(angle - Math.PI/6)
-    );
-    ctx.lineTo(
-      arrowX + arrowSize * Math.cos(angle + Math.PI/6),
-      arrowY + arrowSize * Math.sin(angle + Math.PI/6)
-    );
-    ctx.closePath();
-    ctx.fillStyle = '#ff0';
+    ctx.arc(dragCurrent.x, dragCurrent.y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = '#4CAF50';
     ctx.fill();
-  }
-  
-  ctx.restore();
+    
+    ctx.restore();
 }
 
-// Cambios en la lógica de lanzamiento para 2 jugadores
-let currentPlayer = 1;
-let player1Marble, player2Marble;
-
-function switchPlayer() {
-  if (gameMode !== '2p') return;
-  currentPlayer = currentPlayer === 1 ? 2 : 1;
-}
-
-// Inicialización del juego
-function init() {
-  engine = Engine.create();
-  world = engine.world;
-
-  // Detectar si es móvil
-  isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-
-  // Crear renderizador en el canvas personalizado
-  const canvas = document.getElementById('game-canvas');
-  render = Render.create({
-    canvas: canvas,
-    engine: engine,
-    options: {
-      width: window.innerWidth,
-      height: window.innerHeight,
-      wireframes: false,
-      background: '#333',
-      pixelRatio: isMobile ? 1 : window.devicePixelRatio
-    }
-  });
-  Render.run(render);
-
-  runner = Runner.create();
-  Runner.run(runner, engine);
-
-  // --- Ajustes proporcionales ---
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const minDim = Math.min(w, h);
-  const scale = isMobile ? 0.5 : 0.7;
-  const wallThickness = Math.max(12, Math.round(minDim * 0.03 * scale));
-  const playerRadius = Math.max(10, Math.round(minDim * 0.04 * scale));
-  const targetMin = Math.max(8, Math.round(minDim * 0.03 * scale));
-  const targetMax = Math.max(10, Math.round(minDim * 0.04 * scale));
-
-  // Crear paredes
-  const walls = [
-    Bodies.rectangle(w/2, -wallThickness/2, w, wallThickness, { 
-      isStatic: true,
-      label: 'wall',
-      restitution: 0.5,
-      friction: 0.1,
-      density: 1,
-      render: { fillStyle: '#666' }
-    }), // top
-    Bodies.rectangle(w/2, h+wallThickness/2, w, wallThickness, { 
-      isStatic: true,
-      label: 'wall',
-      restitution: 0.5,
-      friction: 0.1,
-      density: 1,
-      render: { fillStyle: '#666' }
-    }), // bottom
-    Bodies.rectangle(-wallThickness/2, h/2, wallThickness, h, { 
-      isStatic: true,
-      label: 'wall',
-      restitution: 0.5,
-      friction: 0.1,
-      density: 1,
-      render: { fillStyle: '#666' }
-    }), // left
-    Bodies.rectangle(w+wallThickness/2, h/2, wallThickness, h, { 
-      isStatic: true,
-      label: 'wall',
-      restitution: 0.5,
-      friction: 0.1,
-      density: 1,
-      render: { fillStyle: '#666' }
-    }) // right
-  ];
-  World.add(world, walls);
-
-  // Crear metra(s) del jugador
-  if (gameMode === '2p') {
-    player1Marble = Bodies.circle(w * 0.2, h * 0.5, playerRadius, {
-      label: 'player1Marble',
-      restitution: 0.7,
-      friction: 0.1,
-      density: 0.8,
-      render: { fillStyle: '#f5e663', strokeStyle: '#fff', lineWidth: 2 }
-    });
-    player2Marble = Bodies.circle(w * 0.8, h * 0.5, playerRadius, {
-      label: 'player2Marble',
-      restitution: 0.7,
-      friction: 0.1,
-      density: 0.8,
-      render: { fillStyle: '#3498db', strokeStyle: '#fff', lineWidth: 2 }
-    });
-    World.add(world, [player1Marble, player2Marble]);
-    playerMarble = currentPlayer === 1 ? player1Marble : player2Marble;
-  } else {
-    playerMarble = Bodies.circle(w * 0.2, h * 0.5, playerRadius, {
-      label: 'playerMarble',
-      restitution: 0.7,
-      friction: 0.1,
-      density: 0.8,
-      render: { fillStyle: '#f5e663', strokeStyle: '#fff', lineWidth: 2 }
-    });
-    World.add(world, playerMarble);
-  }
-
-  // Crear metras objetivo
-  const colors = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c'];
-  for (let i = 0; i < 6; i++) {
-    let radius = targetMin + Math.random() * (targetMax - targetMin);
-    let x = w * (0.5 + 0.3 * Math.cos((i/6)*2*Math.PI));
-    let y = h * (0.5 + 0.3 * Math.sin((i/6)*2*Math.PI));
-    let marble = Bodies.circle(x, y, radius, {
-      label: 'targetMarble',
-      restitution: 0.7,
-      friction: 0.1,
-      density: 0.8,
-      render: { fillStyle: colors[i % colors.length], strokeStyle: '#fff', lineWidth: 2 }
-    });
-    targetMarbles.push(marble);
-  }
-  World.add(world, targetMarbles);
-
-  // --- FIJAR gravedad a 0 para que no se caigan ---
-  engine.world.gravity.y = 0;
-  engine.world.gravity.x = 0;
-
-  // Añadir configuración de estabilidad
-  engine.timing.timeScale = 1;
-  engine.timing.timestamp = 0;
-  
-  // Configurar el motor para mejor estabilidad
-  engine.constraintIterations = 4;
-  engine.positionIterations = 6;
-  engine.velocityIterations = 4;
-
-  // Mouse/touch constraint solo para la metra del jugador
-  const mouse = Mouse.create(render.canvas);
-  // --- Lógica personalizada de resorte ---
-  // Desktop: mouse
-  render.canvas.addEventListener('mousedown', function(e) {
-    if (gameMode === '2p') playerMarble = currentPlayer === 1 ? player1Marble : player2Marble;
-    const rect = render.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const dx = x - playerMarble.position.x;
-    const dy = y - playerMarble.position.y;
-    if (Math.sqrt(dx*dx + dy*dy) <= playerMarble.circleRadius + 10) {
-      isDragging = true;
-      dragStart = { x: playerMarble.position.x, y: playerMarble.position.y };
-      dragCurrent = { x, y };
-      e.preventDefault();
-    }
-  });
-  render.canvas.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    const rect = render.canvas.getBoundingClientRect();
-    dragCurrent = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    };
-    e.preventDefault();
-  });
-  render.canvas.addEventListener('mouseup', function(e) {
-    if (!isDragging) return;
-    isDragging = false;
-    const forceScale = isMobile ? 0.0008 : 0.0025;
-    let vec = { x: dragStart.x - dragCurrent.x, y: dragStart.y - dragCurrent.y };
-    const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.3 : 0.35);
-    vec = getLimitedVector(vec, maxDist);
-    dragVector = vec;
-    Body.setVelocity(playerMarble, { x: 0, y: 0 });
-    Body.applyForce(playerMarble, playerMarble.position, {
-      x: dragVector.x * forceScale,
-      y: dragVector.y * forceScale
-    });
-    dragStart = null;
-    dragCurrent = null;
-    if (gameMode === '2p') {
-      setTimeout(() => {
-        switchPlayer();
-        playerMarble = currentPlayer === 1 ? player1Marble : player2Marble;
-      }, 600);
-    }
-    e.preventDefault();
-  });
-  // Mobile: touch
-  render.canvas.addEventListener('touchstart', function(e) {
-    if (gameMode === '2p') playerMarble = currentPlayer === 1 ? player1Marble : player2Marble;
-    const touch = e.touches[0];
-    const rect = render.canvas.getBoundingClientRect();
-    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-    const dx = x - playerMarble.position.x;
-    const dy = y - playerMarble.position.y;
-    if (Math.sqrt(dx*dx + dy*dy) <= playerMarble.circleRadius + 10) {
-      isDragging = true;
-      dragStart = { x: playerMarble.position.x, y: playerMarble.position.y };
-      dragCurrent = { x, y };
-      e.preventDefault();
-    }
-  }, { passive: false });
-  render.canvas.addEventListener('touchmove', function(e) {
-    if (!isDragging) return;
-    const touch = e.touches[0];
-    const rect = render.canvas.getBoundingClientRect();
-    dragCurrent = {
-      x: (touch.clientX - rect.left) * (canvas.width / rect.width),
-      y: (touch.clientY - rect.top) * (canvas.height / rect.height)
-    };
-    e.preventDefault();
-  }, { passive: false });
-  render.canvas.addEventListener('touchend', function(e) {
-    if (!isDragging) return;
-    isDragging = false;
-    const forceScale = isMobile ? 0.0008 : 0.0025;
-    let vec = { x: dragStart.x - dragCurrent.x, y: dragStart.y - dragCurrent.y };
-    const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.3 : 0.35);
-    vec = getLimitedVector(vec, maxDist);
-    dragVector = vec;
-    Body.setVelocity(playerMarble, { x: 0, y: 0 });
-    Body.applyForce(playerMarble, playerMarble.position, {
-      x: dragVector.x * forceScale,
-      y: dragVector.y * forceScale
-    });
-    dragStart = null;
-    dragCurrent = null;
-    if (gameMode === '2p') {
-      setTimeout(() => {
-        switchPlayer();
-        playerMarble = currentPlayer === 1 ? player1Marble : player2Marble;
-      }, 600);
-    }
-    e.preventDefault();
-  }, { passive: false });
-
-  // Detección de colisiones
-  Events.on(engine, 'collisionStart', function(event) {
-    let pairs = event.pairs;
-    pairs.forEach(pair => {
-      let labels = [pair.bodyA.label, pair.bodyB.label];
-      if (labels.includes('playerMarble') && labels.includes('targetMarble')) {
-        let target = pair.bodyA.label === 'targetMarble' ? pair.bodyA : pair.bodyB;
-        // Eliminar la metra objetivo
-        World.remove(world, target);
-        targetMarbles = targetMarbles.filter(m => m !== target);
-        // Verificar victoria
-        if (targetMarbles.length === 0) {
-          setTimeout(() => alert('¡Ganaste!'), 300);
-        }
-      }
-    });
-  });
-
-  // Dibujo del lanzador en cada frame
-  (function renderLoop() {
+// Loop de renderizado
+function renderLoop() {
     requestAnimationFrame(renderLoop);
     drawLauncher();
-  })();
-
-  resizeCanvas();
 }
 
-// Mostrar pantalla de selección al cargar
-window.addEventListener('DOMContentLoaded', showModeSelection);
+// Iniciar juego
+document.getElementById('start-button').addEventListener('click', () => {
+    document.getElementById('start-screen').style.display = 'none';
+    gameStarted = true;
+    init();
+    renderLoop();
+});
+
+// Manejar redimensionamiento
+window.addEventListener('resize', () => {
+    if (render) {
+        render.canvas.width = window.innerWidth;
+        render.canvas.height = window.innerHeight;
+        render.options.width = window.innerWidth;
+        render.options.height = window.innerHeight;
+    }
+}); 
