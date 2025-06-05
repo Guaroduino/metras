@@ -1,0 +1,24 @@
+/* styles.css: Estilos básicos para el juego de metras */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #222;
+}
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#game-canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  background: #333;
+  touch-action: none;
+  border-radius: 10px;
+  box-shadow: 0 0 20px #000a;
+}
