@@ -17,6 +17,7 @@ let isDragging = false;
 let dragStart = null;
 let dragCurrent = null;
 let dragVector = null;
+let isMobile = false; // Añadida variable global isMobile
 
 // --- Pantalla de selección de modo ---
 let gameMode = null; // '1p' o '2p'
@@ -172,6 +173,9 @@ function init() {
   engine = Engine.create();
   world = engine.world;
 
+  // Detectar si es móvil
+  isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+
   // Crear renderizador en el canvas personalizado
   const canvas = document.getElementById('game-canvas');
   render = Render.create({
@@ -194,13 +198,11 @@ function init() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const minDim = Math.min(w, h);
-  // Limitar el tamaño máximo en mobile
-  const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-  const scale = isMobile ? 0.6 : 0.7;
-  const wallThickness = Math.max(16, Math.round(minDim * 0.04 * scale));
-  const playerRadius = Math.max(12, Math.round(minDim * 0.045 * scale));
+  const scale = isMobile ? 0.5 : 0.7;
+  const wallThickness = Math.max(12, Math.round(minDim * 0.03 * scale));
+  const playerRadius = Math.max(10, Math.round(minDim * 0.04 * scale));
   const targetMin = Math.max(8, Math.round(minDim * 0.03 * scale));
-  const targetMax = Math.max(12, Math.round(minDim * 0.05 * scale));
+  const targetMax = Math.max(10, Math.round(minDim * 0.04 * scale));
 
   // Crear paredes
   const walls = [
@@ -283,9 +285,9 @@ function init() {
   render.canvas.addEventListener('mouseup', function(e) {
     if (!isDragging) return;
     isDragging = false;
-    const forceScale = isMobile ? 0.001 : 0.0025;
+    const forceScale = isMobile ? 0.0008 : 0.0025;
     let vec = { x: dragStart.x - dragCurrent.x, y: dragStart.y - dragCurrent.y };
-    const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.25 : 0.35);
+    const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.3 : 0.35);
     vec = getLimitedVector(vec, maxDist);
     dragVector = vec;
     Body.setVelocity(playerMarble, { x: 0, y: 0 });
@@ -332,9 +334,9 @@ function init() {
   render.canvas.addEventListener('touchend', function(e) {
     if (!isDragging) return;
     isDragging = false;
-    const forceScale = isMobile ? 0.001 : 0.0025;
+    const forceScale = isMobile ? 0.0008 : 0.0025;
     let vec = { x: dragStart.x - dragCurrent.x, y: dragStart.y - dragCurrent.y };
-    const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.25 : 0.35);
+    const maxDist = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.3 : 0.35);
     vec = getLimitedVector(vec, maxDist);
     dragVector = vec;
     Body.setVelocity(playerMarble, { x: 0, y: 0 });
